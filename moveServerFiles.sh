@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # ******************
 # ***** SOURCE *****
@@ -7,8 +7,7 @@
 read -p "Do you want to use SSH (1) or FTP (2) for the connection to the source host? [1/2]: " sourceConnectionMode
 
 # FTP connection
-if [ "$sourceConnectionMode" = "2" ]
-then
+if [[ $sourceConnectionMode == "2" ]]; then
 	read -p "[Source] Host name / URL / IP: " sourceFtpHostName
 
 	read -p "[Source] Username: " sourceFtpUsername
@@ -29,9 +28,15 @@ quit
 END_SCRIPT
 
 	echo
-	read -p "[Source] Whole path to download: " sourceFtpDownloadPath
-
+	read -p "[Source] Path to download recursively ('/' for current directory): " sourceFtpDownloadPath
 	echo 
+	if [[ $sourceFtpDownloadPath != /* ]]; then 
+		sourceFtpDownloadPath="/"$sourceFtpDownloadPath
+	fi
+	if [[ $sourceFtpDownloadPath != */ ]]; then 
+		sourceFtpDownloadPath=$sourceFtpDownloadPath"/"
+	fi
+
 	echo "Downloading files and folders ..."
 
 	# recreate download directory
@@ -40,9 +45,11 @@ END_SCRIPT
 	cd tmpDownload
 
 	# download files
-	cutDirsNumber=$(echo "$sourceFtpDownloadPath" | tr -cd "/" | wc -c)
-	cutDirsNumber=$((cutDirsNumber + 1))
-	wget -r -N -l inf -q --show-progress -np -nH --cut-dirs $cutDirsNumber --user=$sourceFtpUsername --password=$sourceFtpPassword ftp://$sourceFtpHostName/$sourceFtpDownloadPath
+	sourceCutDirsNumber=$(echo "$destinationFtpUploadPath" | tr -cd "/" | wc -c)
+	if [[ $sourceFtpDownloadPath != "/" ]]; then 
+		sourceCutDirsNumber=$((sourceCutDirsNumber + 1))
+	fi
+	wget -r -N -l inf -q --show-progress -np -nH --cut-dirs $sourceCutDirsNumber ftp://$sourceFtpUsername:$sourceFtpPassword@$sourceFtpHostName$sourceFtpDownloadPath
 
 	echo
     echo "Successful downloaded files and folders from source host!"
@@ -59,8 +66,7 @@ echo
 read -p "Do you want to use SSH (1) or FTP (2) for the connection to the destination host? [1/2]: " destinationConnectionMode
 
 # FTP connection
-if [ "$destinationConnectionMode" = "2" ]
-then
+if [[ $destinationConnectionMode == "2" ]]; then
 	read -p "[Destination] Host name / URL / IP: " destinationFtpHostName
 
 	read -p "[Destination] Username: " destinationFtpUsername
@@ -81,15 +87,22 @@ quit
 END_SCRIPT
 
 	echo
-	read -p "[Source] Whole path to upload: " destinationFtpUploadPath
+	read -p "[Source] Path to upload ('/' for current directory): " destinationFtpUploadPath
+	echo 
+	
+	if [[ $destinationFtpUploadPath != /* ]]; then 
+		destinationFtpUploadPath="/"$destinationFtpUploadPath
+	fi
+	if [[ $destinationFtpUploadPath != */ ]]; then 
+		destinationFtpUploadPath=$destinationFtpUploadPath"/"
+	fi
 
 	localFilePath=$(pwd)
 
-	echo 
 	echo "Uploading files and folders ..."
 	echo 
 	
-	ncftpput -R -v -u "$destinationFtpUsername" -p "$destinationFtpPassword" $destinationFtpHostName $destinationFtpUploadPath $localFilePath/*
+	lftp -e "set ftp:ssl-allow no; mirror -R $localFilePath/ $destinationFtpUploadPath ; quit" -u $destinationFtpUsername,$destinationFtpPassword $destinationFtpHostName
 
 	cd ..
 	rm -rf tmpDownload
