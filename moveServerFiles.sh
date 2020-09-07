@@ -4,114 +4,139 @@
 # ***** SOURCE *****
 # ******************
 
-read -p "Do you want to use SSH (1) or FTP (2) for the connection to the source host? [1/2]: " sourceConnectionMode
+# Collect information and source credentials
+read -p "Do you want to use SSH / SFTP (1) or FTP (2) for the connection to the source host? [1/2]: " sourceConnectionMode
+
+read -p "[Source] Host name / URL / IP: " sourceHostName
+
+read -p "[Source] Username: " sourceUsername
+
+stty -echo
+printf "[Source] Password: "
+read sourcePassword
+stty echo
+
+echo
+read -p "[Source] Path to download recursively ('/' for current directory): " sourceDownloadPath
+
+read -p "Do you want to transfer the folder itself (1) or only the content of $sourceDownloadPath (2)? [1/2]: " sourceDownloadMode
+echo 
+
+if [[ $sourceDownloadPath != /* ]]; then 
+	sourceDownloadPath="/"$sourceDownloadPath
+fi
+if [[ $sourceDownloadPath != */ ]]; then 
+	sourceDownloadPath=$sourceDownloadPath"/"
+fi
+
+# Recreate download directory
+rm -rf tmpDownload
+mkdir tmpDownload
+cd tmpDownload
+
+echo "Trying to connect to source host ..."
 
 # FTP connection
 if [[ $sourceConnectionMode == "2" ]]; then
-	read -p "[Source] Host name / URL / IP: " sourceFtpHostName
 
-	read -p "[Source] Username: " sourceFtpUsername
-
-	stty -echo
-	printf "[Source] Password: "
-	read sourceFtpPassword
-	stty echo
-	printf "\n"
-
-    echo "Trying to connect to source host and display files ..."
-
-ftp -n $sourceFtpHostName <<END_SCRIPT
-quote USER $sourceFtpUsername
-quote PASS $sourceFtpPassword
+	ftp -n $sourceHostName <<END_SCRIPT
+quote USER $sourceUsername
+quote PASS $sourcePassword
 ls
 quit
 END_SCRIPT
 
-	echo
-	read -p "[Source] Path to download recursively ('/' for current directory): " sourceFtpDownloadPath
-	echo 
-	if [[ $sourceFtpDownloadPath != /* ]]; then 
-		sourceFtpDownloadPath="/"$sourceFtpDownloadPath
-	fi
-	if [[ $sourceFtpDownloadPath != */ ]]; then 
-		sourceFtpDownloadPath=$sourceFtpDownloadPath"/"
-	fi
+	echo "Downloading files and folders from $sourceDownloadPath ..."
 
-	echo "Downloading files and folders ..."
-
-	# recreate download directory
-	rm -rf tmpDownload
-	mkdir tmpDownload
-	cd tmpDownload
-
-	# download files
-	sourceCutDirsNumber=$(echo "$destinationFtpUploadPath" | tr -cd "/" | wc -c)
-	if [[ $sourceFtpDownloadPath != "/" ]]; then 
+	# Download files
+	sourceCutDirsNumber=$(echo "$destinationUploadPath" | tr -cd "/" | wc -c)
+	if [[ $sourceDownloadPath != "/" ]]; then 
 		sourceCutDirsNumber=$((sourceCutDirsNumber + 1))
 	fi
-	wget -r -N -l inf -q --show-progress -np -nH --cut-dirs $sourceCutDirsNumber ftp://$sourceFtpUsername:$sourceFtpPassword@$sourceFtpHostName$sourceFtpDownloadPath
 
-	echo
-    echo "Successful downloaded files and folders from source host!"
+	if [[ $sourceDownloadMode == "2" ]]; then
+		sourceCutDirsNumber=$((sourceCutDirsNumber + 1))
+	fi
+
+	wget -r -N -l inf -q --show-progress -np -nH --cut-dirs $sourceCutDirsNumber ftp://$sourceUsername:$sourcePassword@$sourceHostName$sourceDownloadPath
+
+# SSH / SFTP connection
 else
-    echo "SSH connection will be implemented soon ..."
-    exit 0
+	if [[ $sourceDownloadMode == "2" ]]; then
+		if [[ $sourceDownloadPath != *\* ]]; then 
+			sourceDownloadPath=$sourceDownloadPath"*"
+		fi
+	fi
+
+	echo "Downloading files and folders from $sourceDownloadPath ..."
+
+	sshpass -p "$sourcePassword" scp -r -v -o "StrictHostKeyChecking=no" $sourceUsername@$sourceHostName:$sourceDownloadPath $PWD
+
 fi
+
+echo
+echo "Successful downloaded files and folders from source host!"
 
 # *****************
 # ** DESTINATION **
 # *****************
 
 echo
-read -p "Do you want to use SSH (1) or FTP (2) for the connection to the destination host? [1/2]: " destinationConnectionMode
+read -p "Do you want to use SSH / SFTP (1) or FTP (2) for the connection to the destination host? [1/2]: " destinationConnectionMode
+
+read -p "[Destination] Host name / URL / IP: " destinationHostName
+
+read -p "[Destination] Username: " destinationUsername
+
+stty -echo
+printf "[Destination] Password: "
+read destinationPassword
+stty echo
+
+echo
+read -p "[Source] Path to upload ('/' for current directory): " destinationUploadPath
+echo 
+
+echo "Trying to connect to destination host ..."
+
+if [[ $destinationUploadPath != /* ]]; then 
+	destinationUploadPath="/"$destinationUploadPath
+fi
+if [[ $destinationUploadPath != */ ]]; then 
+	destinationUploadPath=$destinationUploadPath"/"
+fi
 
 # FTP connection
 if [[ $destinationConnectionMode == "2" ]]; then
-	read -p "[Destination] Host name / URL / IP: " destinationFtpHostName
 
-	read -p "[Destination] Username: " destinationFtpUsername
-
-	stty -echo
-	printf "[Destination] Password: "
-	read destinationFtpPassword
-	stty echo
-	printf "\n"
-
-    echo "Trying to connect to destination host and display files ..."
-
-	ftp -n $destinationFtpHostName <<END_SCRIPT
-quote USER $destinationFtpUsername
-quote PASS $destinationFtpPassword
+	ftp -n $destinationHostName <<END_SCRIPT
+quote USER $destinationUsername
+quote PASS $destinationPassword
 ls
 quit
 END_SCRIPT
 
-	echo
-	read -p "[Source] Path to upload ('/' for current directory): " destinationFtpUploadPath
+	echo "Uploading files and folders to $destinationUploadPath ..."
 	echo 
 	
-	if [[ $destinationFtpUploadPath != /* ]]; then 
-		destinationFtpUploadPath="/"$destinationFtpUploadPath
-	fi
-	if [[ $destinationFtpUploadPath != */ ]]; then 
-		destinationFtpUploadPath=$destinationFtpUploadPath"/"
-	fi
-
-	localFilePath=$(pwd)
-
-	echo "Uploading files and folders ..."
-	echo 
-	
-	lftp -e "set ftp:ssl-allow no; mirror -R $localFilePath/ $destinationFtpUploadPath ; quit" -u $destinationFtpUsername,$destinationFtpPassword $destinationFtpHostName
-
-	cd ..
-	rm -rf tmpDownload
-
-	echo 
-    echo "Successful uploaded files and folders to destination host!"
+	lftp -e "set ftp:ssl-allow no; mirror -R $PWD/ $destinationUploadPath ; quit" -u $destinationUsername,$destinationPassword $destinationHostName
+# SSH / SFTP connection
 else
-    echo "SSH connection will be implemented soon ..."
+	echo "Uploading files and folders to $destinationUploadPath ..."
+
+	sshpass -p "$destinationPassword" scp -r -v -o "StrictHostKeyChecking=no" $PWD/* $destinationUsername@$destinationHostName:$destinationUploadPath
+
 	exit 0
 fi
+
+echo 
+echo "Successful uploaded files and folders to destination host!"
+
+echo "Deleting temporary download folder ..."
+
+cd ..
+rm -rf tmpDownload
+
+echo "Done!"
 
 exit 0

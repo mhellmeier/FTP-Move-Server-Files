@@ -21,7 +21,7 @@ A simple bash script to move files over FTP / SSH from a source to a (different)
 
 ## About The Project
 
-**Current version**: 0.0.1 (Alpha Phase)
+**Current version**: 0.1 (Beta Phase)
 
 There are many cases where people want to transfer files and folders from a source server `A` to a destination server `B` (for example websites or backups). In most of the cases, the only possible solution to migrate a website to a new host is to download all files manually with a FTP client (like FileZilla) on your local computer and upload it to the new server afterwards. Direct transfers over FXP aren't possible in most of the cases due to restrictions in many (shared) webhosting packages. This small bash script will do the job for you!
 
@@ -32,10 +32,11 @@ If there is access to a VPS or Root Server `C`, I suggest executing the script o
 
 ### Pre-Requirements
 
-To use the script, these are the only things you need:
+To use the script, these are the only things you need (will be installed with the install script):
 - Linux machine (or Mac or Winodws 10 with Linux Subsystem installed)
 - `ftp` installed (`sudo apt install ftp`)
 - `lftp` installed (`sudo apt install lftp`)
+- `sshpass` installed (`sudo apt install sshpass`)
 
 ### Installation
 
@@ -58,7 +59,7 @@ sh install.sh
 ### Important Information
 
 - The script asks for passwords to connect to the source and destination hosts. Keep in mind that these will be used in the commands (plaintext!) to connect and download / upload content. It can be a security concern if the commands will be stored in the log history
-- To get rid of some certificate verifiaction errors, the scripts doesn't make certificate checks
+- To get rid of some certificate verification errors, the scripts doesn't make certificate checks
 - Remember to open FTP / SSH relevant ports in your firewall
 - Use it at your own risk!
 
@@ -70,7 +71,7 @@ Alle planned features, bugs and discussions can be found in the [open issues](ht
 
 ## Contributing
 
-Feel free to fork the project, work in your personal branch and create a pull request your simple interact in the [issue section](https://github.com/mhellmeier/FTP-Move-Server-Files/issues).
+Feel free to fork the project, work in your personal branch and create a pull request or you simple interact in the [issue section](https://github.com/mhellmeier/FTP-Move-Server-Files/issues).
 
 **This is an open source project! Every contribution is greatly appreciated!**
 
